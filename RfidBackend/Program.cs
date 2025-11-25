@@ -20,7 +20,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // JWT AUTHENTICATION
 
-var jwtKey = "YourSuperSecretKeyForJWT_MinimumLength32Chars!";
+var jwtKey = "k7Hj9mPq2LnR8sWx5vBz1Ny4Td6Fg3Jc0Qa8Xe9Vk2Mp7Rt5Uh3Lw6Ns1Zb4Ym";
 var key = Encoding.ASCII.GetBytes(jwtKey);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

@@ -7,7 +7,7 @@ namespace RfidBackend.Services
 {
     public class TokenService
     {
-        private const string SECRET_KEY = "YourSuperSecretKeyForJWT_MinimumLength32Chars!";
+        private const string SECRET_KEY = "k7Hj9mPq2LnR8sWx5vBz1Ny4Td6Fg3Jc0Qa8Xe9Vk2Mp7Rt5Uh3Lw6Ns1Zb4Ym";
 
         public string GenerateToken(User user)
         {
