@@ -62,6 +62,14 @@ export const employeeAPI = {
     api.delete(`/employee/${id}`),
 };
 
+
+export const exportAPI = {
+  downloadExcel: (employeeId, from, to) => 
+    api.get(`/export/employee/${employeeId}/excel`, {
+      params: { from, to },
+      responseType: 'blob'  
+    }),
+};
 // Access Logs API
 export const accessAPI = {
   getEmployeeLogs: (employeeId, from, to) => 

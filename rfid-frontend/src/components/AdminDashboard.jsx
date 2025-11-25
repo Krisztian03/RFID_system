@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { employeeAPI, adminAPI, authAPI } from '../services/api';
+import { employeeAPI, adminAPI, authAPI, exportAPI } from '../services/api';
 import './Dashboard.css';
 
 function AdminDashboard() {
@@ -9,6 +9,13 @@ function AdminDashboard() {
   const [summary, setSummary] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // ÚJ: Dátum szűrő state
+  const [dateRange, setDateRange] = useState({
+    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    to: new Date()
+  });
+  
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -30,11 +37,11 @@ function AdminDashboard() {
 
   const fetchSummary = async (employeeId) => {
     try {
-      const now = new Date();
-      const from = new Date(now.getFullYear(), now.getMonth(), 1);
-      const to = new Date();
-
-      const response = await adminAPI.getSummary(employeeId, from.toISOString(), to.toISOString());
+      const response = await adminAPI.getSummary(
+        employeeId, 
+        dateRange.from.toISOString(), 
+        dateRange.to.toISOString()
+      );
       setSummary(response.data);
     } catch (error) {
       console.error('Hiba a statisztikák lekérésénél:', error);
@@ -63,6 +70,49 @@ function AdminDashboard() {
       alert('Dolgozó törölve!');
     } catch (error) {
       alert('Hiba a törlés során!');
+    }
+  };
+
+  // ÚJ: Dátum szűrő kezelés
+  const handleDateRangeChange = (type, value) => {
+    setDateRange(prev => ({
+      ...prev,
+      [type]: value ? new Date(value) : new Date()
+    }));
+  };
+
+  const handleApplyDateRange = () => {
+    if (selectedEmployee) {
+      fetchSummary(selectedEmployee.id);
+    }
+  };
+
+  // ÚJ: Excel export
+  const handleExportExcel = async () => {
+    if (!selectedEmployee) return;
+    
+    try {
+      const response = await exportAPI.downloadExcel(
+        selectedEmployee.id,
+        dateRange.from.toISOString(),
+        dateRange.to.toISOString()
+      );
+
+      // Fájl letöltés
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `Munkaido_${selectedEmployee.name.replace(' ', '_')}_${dateRange.from.getMonth()+1}.xlsx`;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      alert('✅ Excel fájl letöltve!');
+    } catch (error) {
+      console.error('Excel export hiba:', error);
+      alert('❌ Hiba az Excel generálás során!');
     }
   };
 
@@ -116,9 +166,43 @@ function AdminDashboard() {
                 </div>
               </div>
 
+              {/* ÚJ: Dátum szűrő */}
+              <div className="date-filter">
+                <h3>📅 Időszak választás</h3>
+                <div className="date-inputs">
+                  <div className="date-input-group">
+                    <label>Kezdő dátum:</label>
+                      <input
+                        type="date"
+                        value={dateRange.from.toISOString().split('T')[0]}
+                        onChange={(e) => handleDateRangeChange('from', e.target.value)}
+                    />
+                  </div>
+                  <div className="date-input-group">
+                    <label>Záró dátum:</label>
+                    <input
+                      type="date"
+                      value={dateRange.to.toISOString().split('T')[0]}
+                      onChange={(e) => handleDateRangeChange('to', e.target.value)}
+                    />
+                  </div>
+                  <button onClick={handleApplyDateRange} className="btn-primary">
+                    Alkalmaz
+                  </button>
+                </div>
+              </div>
               {summary && summary.length > 0 ? (
                 <div className="summary-section">
-                  <h3>📊 Havi statisztika</h3>
+                  <div className="summary-header">
+                      <h3>📊 Havi statisztika</h3>
+                    {/* A LEGSZEBB EXPORT GOMB 2025-BEN */}
+                    <button onClick={handleExportExcel} className="btn-export-premium" disabled={!selectedEmployee}>
+                      <span className="btn-export-icon">📊</span>
+                      <span className="btn-export-text">Excel Export</span>
+                      <span className="btn-export-arrow">↓</span>
+                      <div className="btn-export-glow"></div>
+                    </button>
+                  </div>
                   <div className="summary-cards">
                     <div className="summary-card">
                       <div className="summary-value">
@@ -158,7 +242,7 @@ function AdminDashboard() {
                   </table>
                 </div>
               ) : (
-                <div className="no-data">Nincs adat ehhez a dolgozóhoz ebben a hónapban.</div>
+                <div className="no-data">Nincs adat ehhez a dolgozóhoz ebben az időszakban.</div>
               )}
             </>
           ) : (
@@ -174,7 +258,7 @@ function AdminDashboard() {
   );
 }
 
-// Új dolgozó hozzáadása modal
+// AddEmployeeModal komponens változatlan
 function AddEmployeeModal({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     email: '',

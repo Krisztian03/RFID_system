@@ -5,16 +5,23 @@ import './Dashboard.css';
 
 function EmployeeDashboard() {
   const [summary, setSummary] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date(2025, 8, 1)); // Szeptember 2025
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const fetchMySummary = useCallback(async () => {
+    setLoading(true);
     try {
-      const now = new Date();
-      const from = new Date(now.getFullYear(), now.getMonth(), 1);
-      const to = new Date();
+      // A kiválasztott hónap első és utolsó napja
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth();
+      
+      const from = new Date(year, month, 1, 0, 0, 0);
+      const to = new Date(year, month + 1, 0, 23, 59, 59); // Utolsó nap a hónapban
+
+      console.log('Lekérdezés:', from.toISOString(), 'to', to.toISOString());
 
       const response = await adminAPI.getSummary(
         user.employeeId,
@@ -22,13 +29,14 @@ function EmployeeDashboard() {
         to.toISOString()
       );
       
-      setSummary(response.data);
+      console.log('Summary response:', response.data);
+      setSummary(response.data || []);
     } catch (error) {
       console.error('Hiba a statisztikák lekérésénél:', error);
     } finally {
       setLoading(false);
     }
-  }, [user.employeeId]);
+  }, [user.employeeId, selectedDate]);
 
   useEffect(() => {
     fetchMySummary();
@@ -40,10 +48,25 @@ function EmployeeDashboard() {
     navigate('/login');
   };
 
-  if (loading) return <div className="loading">Betöltés...</div>;
+  const previousMonth = () => {
+    setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
+  };
+
+  const goToCurrentMonth = () => {
+    setSelectedDate(new Date(2025, 8, 1)); // Szeptember 2025 (ahol vannak adatok)
+  };
 
   const totalHours = summary.reduce((acc, day) => acc + day.hours, 0);
   const totalAmount = summary.reduce((acc, day) => acc + day.amount, 0);
+
+  const monthYearText = selectedDate.toLocaleDateString('hu-HU', { 
+    year: 'numeric', 
+    month: 'long' 
+  });
 
   return (
     <div className="dashboard employee-dashboard">
@@ -57,25 +80,38 @@ function EmployeeDashboard() {
 
       <div className="dashboard-content single-column">
         <div className="summary-overview">
-          <h2>📅 {new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' })}</h2>
-          
-          <div className="summary-cards">
-            <div className="summary-card big">
-              <div className="summary-value">{totalHours.toFixed(1)} óra</div>
-              <div className="summary-label">Összes munkaidő</div>
-            </div>
-            <div className="summary-card big">
-              <div className="summary-value">{totalAmount.toLocaleString()} Ft</div>
-              <div className="summary-label">Havi fizetés</div>
-            </div>
-            <div className="summary-card big">
-              <div className="summary-value">{summary.length} nap</div>
-              <div className="summary-label">Munkában töltött napok</div>
-            </div>
+          <div className="month-selector">
+            <button onClick={previousMonth} className="month-nav-btn">◀</button>
+            <h2 className="month-title">📅 {monthYearText}</h2>
+            <button onClick={nextMonth} className="month-nav-btn">▶</button>
           </div>
+          <button onClick={goToCurrentMonth} className="btn-today">
+            Mai hónap
+          </button>
+          
+          {loading ? (
+            <div className="loading">Betöltés...</div>
+          ) : (
+            <>
+              <div className="summary-cards">
+                <div className="summary-card big">
+                  <div className="summary-value">{totalHours.toFixed(1)} óra</div>
+                  <div className="summary-label">Összes munkaidő</div>
+                </div>
+                <div className="summary-card big">
+                  <div className="summary-value">{totalAmount.toLocaleString()} Ft</div>
+                  <div className="summary-label">Havi fizetés</div>
+                </div>
+                <div className="summary-card big">
+                  <div className="summary-value">{summary.length} nap</div>
+                  <div className="summary-label">Munkában töltött napok</div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {summary.length > 0 ? (
+        {!loading && summary.length > 0 ? (
           <div className="daily-breakdown">
             <h3>Napi bontás</h3>
             <table className="summary-table">
@@ -104,9 +140,9 @@ function EmployeeDashboard() {
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : !loading && (
           <div className="no-data">
-            <p>📭 Még nincs rögzített munkaidő ebben a hónapban.</p>
+            <p>📭 Nincs rögzített munkaidő ebben a hónapban.</p>
             <p>Az RFID kártyáddal való belépés/kilépés automatikusan rögzítésre kerül!</p>
           </div>
         )}
